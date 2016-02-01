@@ -94,6 +94,16 @@
 				"command": "o.execute",
 				"title": "Run Command",
 				"category": "dnx"
+			},
+            {
+				"command": "o.runSingleTest",
+				"title": "Run Single Test",
+				"category": "OmniSharp"
+			},
+            {
+				"command": "o.runTestFixture",
+				"title": "Run Test Fixture",
+				"category": "OmniSharp"
 			}
 		],
 		"keybindings": [
@@ -126,6 +136,16 @@
 				"key": ".",
 				"command": "^acceptSelectedSuggestion",
 				"when": "editorTextFocus && suggestWidgetVisible && editorLangId == 'csharp' && suggestionSupportsAcceptOnKey"
+			},
+            {
+				"command": "o.runSingleTest",
+				"key": "Ctrl+R R",
+				"mac": "Ctrl+R R"
+			},
+            {
+				"command": "o.runTestFixture",
+				"key": "Ctrl+R F",
+				"mac": "Ctrl+R F"
 			}
 		],
 		"snippets": [

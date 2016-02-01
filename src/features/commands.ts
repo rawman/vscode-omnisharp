@@ -7,10 +7,12 @@
 
 import * as proto from '../protocol';
 import {OmnisharpServer} from '../omnisharpServer';
-import {Disposable, ViewColumn, commands, window} from 'vscode';
+import {Disposable, ViewColumn, commands, window, OutputChannel} from 'vscode';
 import {join, dirname, basename} from 'path';
 import findLaunchTargets from '../launchTargetFinder';
 import {runInTerminal} from 'run-in-terminal';
+import {createRequest, toRange} from '../typeConvertion';
+import {spawn, ChildProcess} from 'child_process';
 
 const isWin = /^win/.test(process.platform);
 
@@ -20,8 +22,10 @@ export default function registerCommands(server: OmnisharpServer) {
 	let d3 = commands.registerCommand('o.restore', () => dnxRestoreForAll(server));
 	let d4 = commands.registerCommand('o.execute', () => dnxExecuteCommand(server));
 	let d5 = commands.registerCommand('o.execute-last-command', () => dnxExecuteLastCommand(server));
-	let d6 = commands.registerCommand('o.showOutput', () => server.getChannel().show(ViewColumn.Three));
-	return Disposable.from(d1, d2, d3, d4, d5, d6);
+    let d6 = commands.registerCommand('o.showOutput', () => server.getChannel().show(ViewColumn.Three));
+    let d7 = commands.registerCommand('o.runSingleTest', () => runTests(server, "Single"));
+    let d8 = commands.registerCommand('o.runTestFixture', () => runTests(server, "Fixture"));
+    return Disposable.from(d1, d2, d3, d4, d5, d6, d7, d8);
 }
 
 function pickProjectAndStart(server: OmnisharpServer) {
@@ -168,4 +172,42 @@ export function dnxRestoreForProject(server: OmnisharpServer, fileName: string) 
 
 		return Promise.reject(`Failed to execute restore, try to run 'dnu restore' manually for ${fileName}.`)
 	});
+}
+
+export function runTests(server: OmnisharpServer, testType) {
+
+    let channel = window.createOutputChannel("Tasks");
+    let activeEditor = window.activeTextEditor;
+
+    let request = createRequest<proto.GetTestContextRequest>(activeEditor.document, activeEditor.selection.start);
+    request.Type = testType;
+
+    return server.makeRequest<proto.GetTestContextResponse>(proto.GetTestContext, request).then(value => {
+        return runCommandInOutputChannel(value.TestCommand, channel);
+    });
+}
+
+export function runCommandInOutputChannel(command: string, channel: OutputChannel): Promise<ChildProcess> {
+
+    return new Promise<ChildProcess>((resolve, reject) => {
+        let args = command.split(" ");
+        let cmd = args.shift();
+        let childprocess: ChildProcess;
+        try {
+            channel.appendLine("[INFO] Running command: " + command);
+            childprocess = spawn(cmd, args, { cwd: dirname("$HOME")});
+        } catch (e) {
+            channel.appendLine("[ERROR]" + e);
+        }
+
+        childprocess.on('error', function(err: any) {
+            channel.appendLine("[ERROR]" + err);
+        });
+
+        childprocess.stdout.on('data', (data: NodeBuffer) => {
+            channel.append(data.toString());
+        });
+
+        resolve(childprocess);
+    });
 }
