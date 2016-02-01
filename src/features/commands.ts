@@ -209,24 +209,31 @@ export function runTestsInOutputChannel(testCommand: string, channel: OutputChan
             channel.appendLine("[ERROR]" + err);
         });
 
-        var finalResultRegex = /Tests run: \d+, Errors: (\d+), Failures: (\d+)/i;
-        var finalResult = "";
         childprocess.stdout.on('data', (data: NodeBuffer) => {
             var line = data.toString();
-            var match = line.match(finalResultRegex);
-            if (match && match.length > 0) {
-                var errors = parseInt(match[1]);
-                var failures = parseInt(match[2]);
-                if (errors + failures > 0)
+            var match = parseTestsResults(line);
+            if (match.success) {
+                if (match.errors + match.failures > 0)
                     channel.show();
 
-                finalResult = match[0];
+                window.setStatusBarMessage(line);
             }
-
             channel.append(line);
-            window.setStatusBarMessage(finalResult);
         });
 
         resolve(childprocess);
     });
+}
+
+function parseTestsResults(text: string): any {
+
+    const finalResultRegex = /Tests run: \d+, Errors: (\d+), Failures: (\d+)/i;
+
+    var match = text.match(finalResultRegex);
+    if (match && match.length > 0) {
+        var errors = parseInt(match[1]);
+        var failures = parseInt(match[2]);
+        return { success: true, errors, failures };
+    }
+    return { success: false, errors: 0, failures: 0 };
 }
