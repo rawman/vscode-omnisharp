@@ -1,7 +1,6 @@
 ## Omnisharp for VS Code
 
-Don't install this extension unless you want to try an early version. By default it is already
-bundled with VS Code.
+This is a fork of [extension v0.3.0](https://marketplace.visualstudio.com/items?itemName=jrieken.vscode-omnisharp) created by Johannes Rieken
 
 ### Development
 
