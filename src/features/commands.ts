@@ -177,25 +177,30 @@ export function dnxRestoreForProject(server: OmnisharpServer, fileName: string) 
 export function runTests(server: OmnisharpServer, testType) {
 
     let channel = window.createOutputChannel("Tasks");
+    channel.clear();
+
     let activeEditor = window.activeTextEditor;
 
     let request = createRequest<proto.GetTestContextRequest>(activeEditor.document, activeEditor.selection.start);
     request.Type = testType;
 
     return server.makeRequest<proto.GetTestContextResponse>(proto.GetTestContext, request).then(value => {
-        return runCommandInOutputChannel(value.TestCommand, channel);
+        return runTestsInOutputChannel(value.TestCommand, channel);
     });
 }
 
-export function runCommandInOutputChannel(command: string, channel: OutputChannel): Promise<ChildProcess> {
+export function runTestsInOutputChannel(testCommand: string, channel: OutputChannel): Promise<ChildProcess> {
 
     return new Promise<ChildProcess>((resolve, reject) => {
-        let args = command.split(" ");
+
+        window.setStatusBarMessage("Running tests...");
+
+        let args = testCommand.split(" ");
         let cmd = args.shift();
         let childprocess: ChildProcess;
         try {
-            channel.appendLine("[INFO] Running command: " + command);
-            childprocess = spawn(cmd, args, { cwd: dirname("$HOME")});
+            channel.appendLine("[INFO] Running command: " + testCommand);
+            childprocess = spawn(cmd, args, { cwd: dirname("$HOME") });
         } catch (e) {
             channel.appendLine("[ERROR]" + e);
         }
@@ -204,8 +209,22 @@ export function runCommandInOutputChannel(command: string, channel: OutputChanne
             channel.appendLine("[ERROR]" + err);
         });
 
+        var finalResultRegex = /Tests run: \d+, Errors: (\d+), Failures: (\d+)/i;
+        var finalResult = "";
         childprocess.stdout.on('data', (data: NodeBuffer) => {
-            channel.append(data.toString());
+            var line = data.toString();
+            var match = line.match(finalResultRegex);
+            if (match && match.length > 0) {
+                var errors = parseInt(match[1]);
+                var failures = parseInt(match[2]);
+                if (errors + failures > 0)
+                    channel.show();
+
+                finalResult = match[0];
+            }
+
+            channel.append(line);
+            window.setStatusBarMessage(finalResult);
         });
 
         resolve(childprocess);
